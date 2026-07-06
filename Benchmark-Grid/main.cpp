@@ -538,7 +538,8 @@ int main(int argc, char **argv)
     json_results["flops"] = tmp_flops;
   }
 
-  json_results["hostnames"] = get_mpi_hostnames();
+  // json_results["hostnames"] = get_mpi_hostnames();
+  json_results["hostnames"] = "local\0";
 
   if (!json_filename.empty())
   {
@@ -546,7 +547,7 @@ int main(int argc, char **argv)
               << std::endl;
 
     int me = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &me);
+    // MPI_Comm_rank(MPI_COMM_WORLD, &me);
     if (me == 0)
     {
       std::ofstream json_file(json_filename);
