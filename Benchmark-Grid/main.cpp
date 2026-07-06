@@ -404,7 +404,7 @@ int main(int argc, char **argv)
     };
 
     // FP32 Deo FLOPS Benchmark
-    runDeo("fp32 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
+    // runDeo("fp32 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
     runDeo("fp32 SU(3) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
     if (do_flops_su4)
     {
@@ -412,20 +412,20 @@ int main(int argc, char **argv)
     }
     if (do_flops_sp4_f)
     {
-        runDeo("fp32 Sp(4) fundamental Wilson dslash 4d vectorised", 1, wilson_sp4_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4F>);
+        // runDeo("fp32 Sp(4) fundamental Wilson dslash 4d vectorised", 1, wilson_sp4_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4F>);
         runDeo("fp32 Sp(4) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_sp4_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4F>);
     }
     if (do_flops_sp4_2as)
     {
-        runDeo("fp32 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricF>);
+        // runDeo("fp32 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricF>);
         runDeo("fp32 Sp(4) two-index antisymmetric Domain wall dslash 4d vectorised", Ls, dwf4_sp4_2as_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricF>);
     }
-    runDeo("fp32 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp32, &Benchmark::DeoFlops<ImprovedStaggeredFermionF>);
+    // runDeo("fp32 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp32, &Benchmark::DeoFlops<ImprovedStaggeredFermionF>);
 
     // FP64 Deo FLOPS Benchmark
     if (do_flops_fp64)
     {
-      runDeo("fp64 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
+      // runDeo("fp64 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
       runDeo("fp64 SU(3) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
       if (do_flops_su4)
       {
@@ -433,15 +433,15 @@ int main(int argc, char **argv)
       }
       if (do_flops_sp4_f)
       {
-        runDeo("fp64 Sp(4) fundamental Wilson dslash 4d vectorised", 1, wilson_sp4_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4D>);
+        // runDeo("fp64 Sp(4) fundamental Wilson dslash 4d vectorised", 1, wilson_sp4_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4D>);
         runDeo("fp64 Sp(4) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_sp4_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4D>);
       }
       if (do_flops_sp4_2as)
       {
-        runDeo("fp64 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricD>);
+        // runDeo("fp64 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricD>);
         runDeo("fp64 Sp(4) two-index antisymmetric Domain wall dslash 4d vectorised", Ls, dwf4_sp4_2as_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricD>);
       }
-      runDeo("fp64 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp64, &Benchmark::DeoFlops<ImprovedStaggeredFermionD>);
+      // runDeo("fp64 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp64, &Benchmark::DeoFlops<ImprovedStaggeredFermionD>);
     }
 
     nlohmann::json tmp_flops;
