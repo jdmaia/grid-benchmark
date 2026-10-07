@@ -1,12 +1,14 @@
 #include "Checks.hpp"
 
 #include <Grid/Grid.h>
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::checkWilson(void)
 {
+  GRID_ROCTX_RANGE("checkWilson");
   int L=8;
   std::cout << GridLogMessage << "Validating Wilson propagator" << std::endl;
 
@@ -63,7 +65,10 @@ void Benchmark::checkWilson(void)
   src=tmp;
   MdagMLinearOperator<WilsonFermionD,LatticeFermionD> HermOp(Dw);
   ConjugateGradient<LatticeFermionD> CG(1.0e-8,10000);
-  CG(HermOp,src,result);
+  {
+    GRID_ROCTX_RANGE("CG solve");
+    CG(HermOp,src,result);
+  }
 
   std::cout << GridLogMessage << " Taking difference" <<std::endl;
   std::cout << GridLogMessage << "Wilson result "<<norm2(result)<<std::endl;

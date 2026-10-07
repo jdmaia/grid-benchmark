@@ -52,7 +52,8 @@ cd "${build_dir}" || return
 extra_env=$(mktemp)
 echo "${entry}" | jq -er '.env|to_entries|map("export \(.key)=\"\(.value|tostring)\"")|.[]' > "${extra_env}"
 commit=$(echo "${entry}" | jq -er ".commit")
-git clone https://github.com/paboyle/Grid.git "${build_dir}"
+# git clone https://github.com/paboyle/Grid.git "${build_dir}"
+git clone https://github.com/jdmaia/Grid.git "${build_dir}"
 cd "${build_dir}"
 git checkout "${commit}"
 ./bootstrap.sh

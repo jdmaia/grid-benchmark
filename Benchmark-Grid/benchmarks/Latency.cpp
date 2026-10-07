@@ -4,12 +4,14 @@
 #include <Grid/Grid.h>
 #include "Common.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::Latency(nlohmann::json& json_results)
 {
+  GRID_ROCTX_RANGE("Latency");
   int Nwarmup = 100;
   int Nloop = 300;
 
@@ -31,6 +33,9 @@ void Benchmark::Latency(nlohmann::json& json_results)
     {
       if (from == to)
         continue;
+
+      GRID_ROCTX_RANGE((std::string("ping-pong ") + std::to_string(from) + "->" +
+                         std::to_string(to)).c_str());
 
       std::vector<double> t_time(Nloop);
       time_statistics timestat;

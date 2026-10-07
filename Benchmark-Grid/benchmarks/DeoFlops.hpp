@@ -5,6 +5,7 @@
 #include "Common.hpp"
 #include "Benchmark-Grid/ActionInfo.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 
 using namespace Grid;
@@ -42,6 +43,8 @@ namespace Benchmark
   template<typename Action>
   static double DeoFlops(int Ls, int L, Grid::Coordinate pattern)
   {
+    std::string rangeName = std::string("DeoFlops L=") + std::to_string(L);
+    GRID_ROCTX_RANGE(rangeName.c_str());
     double gflops;
     double gflops_best = 0;
     double gflops_worst = 0;
@@ -104,6 +107,7 @@ namespace Benchmark
     grid_big_sep();
 
     ///////// Lattice Init ////////////
+    GRID_ROCTX_PUSH("Setup");
     GridCartesian *UGrid = SpaceTimeGrid::makeFourDimGrid(
         latt4, GridDefaultSimd(Nd, Action::Simd::Nsimd()), GridDefaultMpi());
     GridRedBlackCartesian *UrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid);
@@ -206,6 +210,7 @@ namespace Benchmark
     Fermion r_o(FrbGrid);
     Fermion r_eo(FGrid);
     Action action = ActionInfo::create(Umu, UGrid, UrbGrid, FGrid, FrbGrid);
+    GRID_ROCTX_POP(); // Setup
 
     {
 
@@ -227,6 +232,17 @@ namespace Benchmark
 
       for (int c = 0; c < num_cases; c++)
       {
+        const char* commsDesc =
+            (Cases[c].CommsOverlap == Action::Kernels::CommsAndCompute)
+            ? "overlapped-comms-compute"
+            : "sequential-comms-then-compute";
+        const char* policyDesc =
+            (Cases[c].CommsAsynch == CartesianCommunicator::CommunicatorPolicyConcurrent)
+            ? "concurrent-comms-policy"
+            : "sequential-comms-policy";
+        std::string caseLabel = std::string("Case ") + std::to_string(c) + ": " +
+                                 commsDesc + ", " + policyDesc;
+        GRID_ROCTX_RANGE(caseLabel.c_str());
 
         Action::Kernels::Comms = Cases[c].CommsOverlap;
         Action::Kernels::Opt = Cases[c].Opt;
@@ -245,9 +261,12 @@ namespace Benchmark
         int nwarm = 10;
         double t0 = usecond();
         action.FermionGrid()->Barrier();
-        for (int i = 0; i < nwarm; i++)
         {
-          action.DhopEO(src_o, r_e, DaggerNo);
+          GRID_ROCTX_RANGE("Warmup");
+          for (int i = 0; i < nwarm; i++)
+          {
+            action.DhopEO(src_o, r_e, DaggerNo);
+          }
         }
         action.FermionGrid()->Barrier();
         double t1 = usecond();
@@ -257,12 +276,15 @@ namespace Benchmark
 
         time_statistics timestat;
         std::vector<double> t_time(ncall);
-        for (uint64_t i = 0; i < ncall; i++)
         {
-          t0 = usecond();
-          action.DhopEO(src_o, r_e, DaggerNo);
-          t1 = usecond();
-          t_time[i] = t1 - t0;
+          GRID_ROCTX_RANGE("DhopEO timed loop");
+          for (uint64_t i = 0; i < ncall; i++)
+          {
+            t0 = usecond();
+            action.DhopEO(src_o, r_e, DaggerNo);
+            t1 = usecond();
+            t_time[i] = t1 - t0;
+          }
         }
         action.FermionGrid()->Barrier();
 

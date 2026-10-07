@@ -3,12 +3,14 @@
 #include <Grid/Grid.h>
 #include "Common.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::SU4(nlohmann::json& json_results)
 {
+  GRID_ROCTX_RANGE("SU4");
   const int Nwarmup = 50;
   const int Nc4 = 4;
   typedef Lattice<iMatrix<vComplexF, 4>> LatticeSU4;
@@ -29,6 +31,7 @@ void Benchmark::SU4(nlohmann::json& json_results)
   sRNG.SeedFixedIntegers(std::vector<int>({45, 12, 81, 9}));
   for (int lat = 8; lat <= lmax; lat += 8)
   {
+    GRID_ROCTX_RANGE((std::string("lat=") + std::to_string(lat)).c_str());
 
     Coordinate latt_size({lat * mpi_layout[0], lat * mpi_layout[1], lat * mpi_layout[2],
                           lat * mpi_layout[3]});
@@ -48,14 +51,20 @@ void Benchmark::SU4(nlohmann::json& json_results)
 
     const uint64_t Nloop = (200 * lmax * lmax * lmax / lat / lat / lat);
 
-    for (int i = 0; i < Nwarmup; i++)
     {
-      z = x * y;
+      GRID_ROCTX_RANGE("Warmup");
+      for (int i = 0; i < Nwarmup; i++)
+      {
+        z = x * y;
+      }
     }
     double start = usecond();
-    for (int i = 0; i < Nloop; i++)
     {
-      z = x * y;
+      GRID_ROCTX_RANGE("SU4 mul timed loop");
+      for (int i = 0; i < Nloop; i++)
+      {
+        z = x * y;
+      }
     }
     double stop = usecond();
     double time = (stop - start) / Nloop / 1.e6;

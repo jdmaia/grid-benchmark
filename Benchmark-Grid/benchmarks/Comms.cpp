@@ -3,12 +3,14 @@
 #include <Grid/Grid.h>
 #include "Common.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::Comms(nlohmann::json& json_results)
 {
+  GRID_ROCTX_RANGE("Comms");
   const int Nwarmup = 50;
   int Nloop = 200;
   int nmu = 0;
@@ -46,6 +48,7 @@ void Benchmark::Comms(nlohmann::json& json_results)
 
   for (int lat = 16; lat <= maxlat; lat += 8)
   {
+    GRID_ROCTX_RANGE((std::string("lat=") + std::to_string(lat)).c_str());
 
     Coordinate latt_size({lat * mpi_layout[0], lat * mpi_layout[1], lat * mpi_layout[2],
                           lat * mpi_layout[3]});
@@ -72,7 +75,10 @@ void Benchmark::Comms(nlohmann::json& json_results)
       bool is_shm = mpi_layout[mu] == shm_layout[mu];
       bool is_partial_shm = !is_shm && shm_layout[mu] != 1;
 
+      GRID_ROCTX_PUSH((std::string("dir=") + std::to_string(dir)).c_str());
+
       std::vector<double> times(Nloop);
+      GRID_ROCTX_PUSH("Warmup");
       for (int i = 0; i < Nwarmup; i++)
       {
         int xmit_to_rank;
@@ -91,6 +97,8 @@ void Benchmark::Comms(nlohmann::json& json_results)
         Grid.SendToRecvFrom((void *)&xbuf[dir][0], xmit_to_rank, (void *)&rbuf[dir][0],
                             recv_from_rank, bytes);
       }
+      GRID_ROCTX_POP(); // Warmup
+      GRID_ROCTX_PUSH("SendToRecvFrom timed loop");
       for (int i = 0; i < Nloop; i++)
       {
 
@@ -116,6 +124,7 @@ void Benchmark::Comms(nlohmann::json& json_results)
         double stop = usecond();
         t_time[i] = stop - start; // microseconds
       }
+      GRID_ROCTX_POP(); // SendToRecvFrom timed loop
       timestat.statistics(t_time);
 
       dbytes = dbytes * ppn;
@@ -141,6 +150,7 @@ void Benchmark::Comms(nlohmann::json& json_results)
       tmp_rate["max"] = rate_max;
       tmp["rate_GBps"] = tmp_rate;
       json_results["comms"].push_back(tmp);
+      GRID_ROCTX_POP(); // dir=<dir>
     }
   }
   for (int d = 0; d < 8; d++)

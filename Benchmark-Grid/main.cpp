@@ -26,6 +26,7 @@
 #include "Benchmark-Grid/benchmarks/Benchmarks.hpp"
 #include "Benchmark-Grid/Utils.hpp"
 #include "Benchmark-Grid/checks/Checks.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 
 using namespace Grid;
@@ -62,6 +63,7 @@ namespace Benchmark
 {
   static void Decomposition(int& NNout, Grid::Coordinate& pattern, nlohmann::json& json_results)
   {
+    GRID_ROCTX_RANGE("Decomposition");
     nlohmann::json tmp;
     int threads = GridThread::GetThreads();
     Grid::Coordinate mpi = GridDefaultMpi();
@@ -371,6 +373,7 @@ int main(int argc, char **argv)
 
   auto runBenchmark = [&json_results](const std::string& name, const std::function<void(nlohmann::json&)>& fn)
   {
+    GRID_ROCTX_RANGE(name.c_str());
     grid_big_sep();
     std::cout << GridLogMessage << " " << name << " benchmark " << std::endl;
     grid_big_sep();
@@ -384,6 +387,7 @@ int main(int argc, char **argv)
   if (do_p2p)     runBenchmark("Point-To-Point", &Benchmark::P2P);
   if (do_check_wilson)
   {
+    GRID_ROCTX_RANGE("Check Wilson");
     grid_big_sep();
     std::cout << GridLogMessage << " Check Wilson" << std::endl;
     grid_big_sep();
@@ -395,6 +399,7 @@ int main(int argc, char **argv)
   {
     auto runDeo = [&L_list, &pattern](const std::string& msg, int Ls, std::vector<double>& results, std::function<double(int,int,Grid::Coordinate)> fn)
     {
+      GRID_ROCTX_RANGE(msg.c_str());
       grid_big_sep();
       std::cout << GridLogMessage << " " << msg << std::endl;
       for (int l = 0; l < L_list.size(); l++)

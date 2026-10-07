@@ -45,6 +45,30 @@ AC_PROG_RANLIB
 AM_PROG_AR
 AC_LANG([C++])
 
+AC_ARG_ENABLE([roctx],
+    [AS_HELP_STRING([--disable-roctx],
+    [disable ROCTx markers even if available (default: autodetect)])],
+    [ac_roctx=$enableval], [ac_roctx=auto])
+
+if test x"$ac_roctx" != x"no" ; then
+    save_LIBS="$LIBS"
+    LIBS="$LIBS -lroctx64"
+    AC_MSG_CHECKING([for ROCTx (roctracer/roctx.h + libroctx64)])
+    AC_LINK_IFELSE(
+        [AC_LANG_PROGRAM([[#include <roctracer/roctx.h>]],
+                          [[roctxRangePush("test"); roctxRangePop();]])],
+        [ac_roctx_found=yes], [ac_roctx_found=no])
+    AC_MSG_RESULT([$ac_roctx_found])
+    if test x"$ac_roctx_found" = x"yes" ; then
+        AC_DEFINE([HAVE_ROCTX], [1], [Define if ROCTx markers are available])
+    else
+        LIBS="$save_LIBS"
+        if test x"$ac_roctx" = x"yes" ; then
+            AC_MSG_ERROR([--enable-roctx requested but ROCTx could not be found])
+        fi
+    fi
+fi
+
 AC_MSG_CHECKING([that a minimal Grid program compiles]);
 AC_LINK_IFELSE(
 	[AC_LANG_SOURCE([[

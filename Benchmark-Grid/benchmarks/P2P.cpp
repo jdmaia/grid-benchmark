@@ -3,12 +3,14 @@
 #include <Grid/Grid.h>
 #include "Common.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::P2P(nlohmann::json& json_results)
 {
+  GRID_ROCTX_RANGE("P2P");
   // IMPORTANT: The P2P benchmark uses "MPI_COMM_WORLD" communicator, which is
   // not the quite the same as Grid.communicator. Practically speaking, the
   // latter one contains the same MPI-ranks but in a different order. Grid
@@ -42,6 +44,9 @@ void Benchmark::P2P(nlohmann::json& json_results)
     {
       if (from == to)
         continue;
+
+      GRID_ROCTX_RANGE((std::string("ping-pong ") + std::to_string(from) + "->" +
+                         std::to_string(to)).c_str());
 
       std::vector<double> t_time(Nloop);
       time_statistics timestat;

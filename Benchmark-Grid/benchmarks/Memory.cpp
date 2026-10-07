@@ -3,12 +3,14 @@
 #include <Grid/Grid.h>
 #include "Common.hpp"
 #include "Benchmark-Grid/Utils.hpp"
+#include "Benchmark-Grid/Roctx.hpp"
 
 using namespace Grid;
 
 
 void Benchmark::Memory(nlohmann::json& json_results)
 {
+  GRID_ROCTX_RANGE("Memory");
   const int Nwarmup = 50;
   const int Nvec = 8;
   typedef Lattice<iVector<vReal, Nvec>> LatticeVec;
@@ -29,6 +31,7 @@ void Benchmark::Memory(nlohmann::json& json_results)
   sRNG.SeedFixedIntegers(std::vector<int>({45, 12, 81, 9}));
   for (int lat = 8; lat <= lmax; lat += 8)
   {
+    GRID_ROCTX_RANGE((std::string("lat=") + std::to_string(lat)).c_str());
     Coordinate latt_size({lat * mpi_layout[0], lat * mpi_layout[1], lat * mpi_layout[2],
                           lat * mpi_layout[3]});
     double vol =
@@ -51,14 +54,20 @@ void Benchmark::Memory(nlohmann::json& json_results)
 
     const uint64_t Nloop = (200 * lmax * lmax * lmax / lat / lat / lat);
 
-    for (int i = 0; i < Nwarmup; i++)
     {
-      z = a * x - y;
+      GRID_ROCTX_RANGE("Warmup");
+      for (int i = 0; i < Nwarmup; i++)
+      {
+        z = a * x - y;
+      }
     }
     double start = usecond();
-    for (int i = 0; i < Nloop; i++)
     {
-      z = a * x - y;
+      GRID_ROCTX_RANGE("axpy timed loop");
+      for (int i = 0; i < Nloop; i++)
+      {
+        z = a * x - y;
+      }
     }
     double stop = usecond();
     double time = (stop - start) / Nloop / 1.e6;
