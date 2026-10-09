@@ -161,6 +161,7 @@ void printUsage()
   std::cout<<GridLogMessage<<"  --no-benchmark-p2p           : Disable point-to-point communications bandwidth benchmark."<<std::endl;
   std::cout<<GridLogMessage<<"  --check-wilson               : Enable Wilson Fermion correctness check (default=on)."<<std::endl;
   std::cout<<GridLogMessage<<"  --no-check-wilson            : Disable Wilson Fermion correctness check."<<std::endl;
+  std::cout<<GridLogMessage<<"  --dwf4-only                  : Only run the SU(3) fundamental Domain wall dslash Flops benchmark, for L=24,32,48, and only the overlapped comms/compute scheme with the concurrent comms policy. Disables every other benchmark and check, and ignores --max-L."<<std::endl;
   std::cout<<GridLogMessage<<"  --pattern <x.y.z.t>          : Scales the local lattice dimensions by the factors in the string x.y.z.t."<<std::endl;
   std::cout<<GridLogMessage<<"  --max-L                      : Sets the maximum lattice size for the flops benchmarks. This must decompose to 2^n 3^m, for n>0 and m={0,1}."<<std::endl;
   std::cout<<GridLogMessage<<std::endl;
@@ -197,6 +198,9 @@ int main(int argc, char **argv)
   // off by default
   bool do_latency = false;
   bool do_p2p = false;
+
+  // Run nothing but the SU(3) fundamental DWF dslash Flops benchmark, on a fixed L list
+  bool do_dwf4_only = false;
 
   Grid::Coordinate pattern({1,1,1,1});
   int maxL = 32;
@@ -262,6 +266,8 @@ int main(int argc, char **argv)
       do_flops_fp64 = false;
     if (arg == "--no-check-wilson")
       do_check_wilson = false;
+    if (arg == "--dwf4-only")
+      do_dwf4_only = true;
     if (arg == "--pattern")
     {
       // Make sure there's another argument to parse
@@ -310,6 +316,23 @@ int main(int argc, char **argv)
     }
   }
 
+  // --dwf4-only takes precedence over every other benchmark selection switch
+  if (do_dwf4_only)
+  {
+    do_memory = false;
+    do_su4 = false;
+    do_comms = false;
+    do_latency = false;
+    do_p2p = false;
+    do_check_wilson = false;
+    do_flops = true;
+    do_flops_su4 = false;
+    do_flops_sp4_f = false;
+    do_flops_sp4_2as = false;
+    // Only time the overlapped comms/compute scheme with the concurrent comms policy
+    deo_overlapped_comms_only = true;
+  }
+
   CartesianCommunicator::SetCommunicatorPolicy(
       CartesianCommunicator::CommunicatorPolicySequential);
 
@@ -320,18 +343,33 @@ int main(int argc, char **argv)
   // Generate DeoFlops local volumes
   int sel = 4;
   int selm1 = sel - 1;
-  std::vector<int> L_list({8, 12, 16, 24});
-  for (int curL = 16; curL < maxL; curL *= 2)
+  std::vector<int> L_list;
+  if (do_dwf4_only)
   {
-    if (curL * 2 <= maxL)
-      L_list.push_back(curL * 2);
-    if (curL * 3 <= maxL)
-      L_list.push_back(curL * 3);
+    L_list = {24, 32, 48};
+  }
+  else
+  {
+    L_list = {8, 12, 16, 24};
+    for (int curL = 16; curL < maxL; curL *= 2)
+    {
+      if (curL * 2 <= maxL)
+        L_list.push_back(curL * 2);
+      if (curL * 3 <= maxL)
+        L_list.push_back(curL * 3);
+    }
+  }
+
+  // Comparison point is the average of the two largest available local volumes
+  if (sel > (int)L_list.size() - 1)
+  {
+    sel = L_list.size() - 1;
+    selm1 = sel - 1;
   }
 
   // Error check: make sure input maxL is a member of the local
   // volume list.
-  if (L_list.back() != maxL)
+  if (!do_dwf4_only && L_list.back() != maxL)
   {
     int lowerL, higherL;
     if (L_list.size() % 2) // 2^n*2 < L < 2^n*3
@@ -409,7 +447,8 @@ int main(int argc, char **argv)
     };
 
     // FP32 Deo FLOPS Benchmark
-    runDeo("fp32 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
+    if (!do_dwf4_only)
+      runDeo("fp32 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
     runDeo("fp32 SU(3) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_fp32, &Benchmark::DeoFlops<DomainWallFermionF>);
     if (do_flops_su4)
     {
@@ -425,12 +464,14 @@ int main(int argc, char **argv)
         runDeo("fp32 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricF>);
         runDeo("fp32 Sp(4) two-index antisymmetric Domain wall dslash 4d vectorised", Ls, dwf4_sp4_2as_fp32, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricF>);
     }
-    runDeo("fp32 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp32, &Benchmark::DeoFlops<ImprovedStaggeredFermionF>);
+    if (!do_dwf4_only)
+      runDeo("fp32 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp32, &Benchmark::DeoFlops<ImprovedStaggeredFermionF>);
 
     // FP64 Deo FLOPS Benchmark
     if (do_flops_fp64)
     {
-      runDeo("fp64 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
+      if (!do_dwf4_only)
+        runDeo("fp64 SU(3) fundamental Wilson dslash 4d vectorised", 1, wilson_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
       runDeo("fp64 SU(3) fundamental Domain wall dslash 4d vectorised", Ls, dwf4_fp64, &Benchmark::DeoFlops<DomainWallFermionD>);
       if (do_flops_su4)
       {
@@ -446,7 +487,8 @@ int main(int argc, char **argv)
         runDeo("fp64 Sp(4) two-index antisymmetric Wilson dslash 4d vectorised", 1, wilson_sp4_2as_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricD>);
         runDeo("fp64 Sp(4) two-index antisymmetric Domain wall dslash 4d vectorised", Ls, dwf4_sp4_2as_fp64, &Benchmark::DeoFlops<DomainWallFermionSp4TwoIndexAntiSymmetricD>);
       }
-      runDeo("fp64 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp64, &Benchmark::DeoFlops<ImprovedStaggeredFermionD>);
+      if (!do_dwf4_only)
+        runDeo("fp64 SU(3) fundamental Improved Staggered dslash 4d vectorised", 0, staggered_fp64, &Benchmark::DeoFlops<ImprovedStaggeredFermionD>);
     }
 
     nlohmann::json tmp_flops;

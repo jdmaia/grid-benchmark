@@ -217,10 +217,7 @@ namespace Benchmark
       pickCheckerboard(Even, src_e, src);
       pickCheckerboard(Odd, src_o, src);
 
-      const int num_cases = 4;
-      std::string fmt("G/S/C ; G/O/C ; G/S/S ; G/O/S ");
-
-      controls Cases[] = {
+      const controls AllCases[] = {
           {Action::Kernels::OptGeneric, Action::Kernels::CommsThenCompute,
            CartesianCommunicator::CommunicatorPolicyConcurrent},
           {Action::Kernels::OptGeneric, Action::Kernels::CommsAndCompute,
@@ -229,6 +226,13 @@ namespace Benchmark
            CartesianCommunicator::CommunicatorPolicySequential},
           {Action::Kernels::OptGeneric, Action::Kernels::CommsAndCompute,
            CartesianCommunicator::CommunicatorPolicySequential}};
+
+      // Index 1 is overlapped comms/compute with the concurrent comms policy
+      const controls *Cases = deo_overlapped_comms_only ? &AllCases[1] : &AllCases[0];
+      const int num_cases = deo_overlapped_comms_only ? 1 : 4;
+      std::string fmt = deo_overlapped_comms_only
+                            ? std::string("G/O/C ")
+                            : std::string("G/S/C ; G/O/C ; G/S/S ; G/O/S ");
 
       for (int c = 0; c < num_cases; c++)
       {

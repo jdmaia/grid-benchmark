@@ -11,6 +11,11 @@
 // our own wrapper here.
 double usecond_precise();
 
+// When true, Benchmark::DeoFlops only runs the overlapped comms/compute case
+// with the concurrent communicator policy, instead of sweeping all four
+// comms schemes. Set by the --dwf4-only CLI switch.
+inline bool deo_overlapped_comms_only = false;
+
 struct time_statistics
 {
   double mean;

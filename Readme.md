@@ -162,6 +162,7 @@ Flag | Result
 --no-benchmark-p2p           | Disable point-to-point communications bandwidth benchmark.
 --check-wilson               | Enable Wilson Fermion correctness check (default=on).
 --no-check-wilson            | Disable Wilson Fermion correctness check.
+--dwf4-only                  | Only run the SU(3) fundamental Domain wall dslash Flops benchmark, for L=24, 32 and 48, and only for the overlapped comms/compute scheme with the concurrent communicator policy (`G/O/C`) instead of the usual sweep over all four comms schemes. Disables every other benchmark and correctness check, and ignores `--max-L`. FP64 can still be turned off with `--no-benchmark-flops-fp64`.
 --pattern \<x.y.z.t\>        | Scales the local lattice dimensions by the factors in the string x.y.z.t. This allows the volume-per-node to be matched between systems with dfferent GPUs-per-node if desired.
 --max-L \<size\>             | Sets the maximum lattice size for the flops benchmarks. This must either be a power of 2, or 3 times a power of 2.
 
