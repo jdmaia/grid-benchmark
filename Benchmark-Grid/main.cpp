@@ -161,7 +161,7 @@ void printUsage()
   std::cout<<GridLogMessage<<"  --no-benchmark-p2p           : Disable point-to-point communications bandwidth benchmark."<<std::endl;
   std::cout<<GridLogMessage<<"  --check-wilson               : Enable Wilson Fermion correctness check (default=on)."<<std::endl;
   std::cout<<GridLogMessage<<"  --no-check-wilson            : Disable Wilson Fermion correctness check."<<std::endl;
-  std::cout<<GridLogMessage<<"  --dwf4-only                  : Only run the SU(3) fundamental Domain wall dslash Flops benchmark, for L=24,32,48, and only the overlapped comms/compute scheme with the concurrent comms policy. Disables every other benchmark and check, and ignores --max-L."<<std::endl;
+  std::cout<<GridLogMessage<<"  --dwf4-only                  : Only run the SU(3) fundamental Domain wall dslash Flops benchmark, for L=48, and only the overlapped comms/compute scheme with the concurrent comms policy. Disables every other benchmark and check, and ignores --max-L."<<std::endl;
   std::cout<<GridLogMessage<<"  --pattern <x.y.z.t>          : Scales the local lattice dimensions by the factors in the string x.y.z.t."<<std::endl;
   std::cout<<GridLogMessage<<"  --max-L                      : Sets the maximum lattice size for the flops benchmarks. This must decompose to 2^n 3^m, for n>0 and m={0,1}."<<std::endl;
   std::cout<<GridLogMessage<<std::endl;
@@ -346,7 +346,7 @@ int main(int argc, char **argv)
   std::vector<int> L_list;
   if (do_dwf4_only)
   {
-    L_list = {24, 32, 48};
+    L_list = {48};
   }
   else
   {
@@ -364,7 +364,7 @@ int main(int argc, char **argv)
   if (sel > (int)L_list.size() - 1)
   {
     sel = L_list.size() - 1;
-    selm1 = sel - 1;
+    selm1 = std::max(sel - 1, 0);
   }
 
   // Error check: make sure input maxL is a member of the local
