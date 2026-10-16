@@ -61,6 +61,140 @@ std::vector<std::string> get_mpi_hostnames()
 
 namespace Benchmark
 {
+  // Classify each of the 8 nearest-neighbour stencil faces as intra-node
+  // (shared memory / IPC) or inter-node (MPI over the fabric).
+  //
+  // This interrogates the communicator directly rather than re-deriving the
+  // answer from the Shm layout. ShiftedRanks() is the same call the Wilson
+  // stencil uses to resolve its peers (Grid/stencil/Stencil.h, in Gather() and
+  // GatherSimd()), and IsOffNode() is the same predicate that
+  // StencilSendToRecvFromBegin() branches on when choosing between
+  // acceleratorCopyDeviceToDeviceAsynch and MPI_Isend. So a face counted here
+  // as inter-node is exactly a face whose bytes will hit the NIC.
+  static void NeighbourTopology(GridCartesian *grid, nlohmann::json& tmp)
+  {
+    const Coordinate mpi = grid->ProcessorGrid();
+    const int nd = mpi.size();
+    const char *dimName[4] = {"x", "y", "z", "t"};
+
+    // Grid reorders ranks with respect to MPI_COMM_WORLD (OptimalCommunicator
+    // does an MPI_Comm_split keyed on a node-blocked coordinate), so hostnames
+    // must be gathered over the *cartesian* communicator to be indexable by the
+    // ranks that ShiftedRanks hands back.
+    char myhost[MPI_MAX_PROCESSOR_NAME];
+    int name_len = 0;
+    MPI_Get_processor_name(myhost, &name_len);
+    std::vector<char> hosts(grid->ProcessorCount() * MPI_MAX_PROCESSOR_NAME);
+    MPI_Allgather(myhost, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, hosts.data(),
+                  MPI_MAX_PROCESSOR_NAME, MPI_CHAR, grid->communicator);
+    const std::string myhostname(myhost);
+    auto hostOf = [&hosts](int rank)
+    { return std::string(&hosts[rank * MPI_MAX_PROCESSOR_NAME]); };
+
+    int intra = 0, inter = 0, mismatch = 0;
+
+    grid_small_sep();
+    std::cout << GridLogMessage << "Stencil neighbour topology (rank "
+              << grid->ThisRank() << " on " << myhostname << ")" << std::endl;
+
+    for (int mu = 0; mu < nd; mu++)
+    {
+      int dimIntra = 0, dimInter = 0;
+      nlohmann::json dimInfo;
+      dimInfo["dim"] = dimName[mu];
+      dimInfo["mpi"] = mpi[mu];
+
+      // comm_dim is false in the stencil when the dimension is undecomposed:
+      // no face is gathered at all, so this costs zero bytes either way.
+      if (mpi[mu] <= 1)
+      {
+        dimInfo["intra"] = 0;
+        dimInfo["inter"] = 0;
+        std::cout << GridLogMessage << "* " << dimName[mu]
+                  << " : not decomposed, no halo exchange" << std::endl;
+        tmp["faces"]["per_dim"].push_back(dimInfo);
+        continue;
+      }
+
+      std::string desc;
+      for (int sign = 1; sign >= -1; sign -= 2)
+      {
+        int source, dest;
+        grid->ShiftedRanks(mu, sign, source, dest);
+        const bool offNode = grid->IsOffNode(dest);
+
+        // Independent cross-check: IsOffNode consults the MPI shared-memory
+        // group, the hostname comparison does not. Disagreement means the
+        // shared-memory split does not line up with the physical node.
+        if (offNode == (hostOf(dest) == myhostname))
+          mismatch++;
+
+        if (offNode)
+          dimInter++;
+        else
+          dimIntra++;
+
+        desc += std::string(sign > 0 ? "  +" : "  -") + dimName[mu] + " rank "
+                + std::to_string(dest) + " (" + (offNode ? "inter" : "intra") + ")";
+      }
+
+      intra += dimIntra;
+      inter += dimInter;
+      dimInfo["intra"] = dimIntra;
+      dimInfo["inter"] = dimInter;
+
+      std::cout << GridLogMessage << "* " << dimName[mu] << " :" << desc << std::endl;
+      tmp["faces"]["per_dim"].push_back(dimInfo);
+    }
+
+    // Per-rank counts are uniform only when every ShmDims[d] is 1, 2, or equal
+    // to the full extent. Flag it if that does not hold, since the totals below
+    // would then not describe every rank.
+    uint64_t intraSum = intra, interSum = inter, mismatchSum = mismatch;
+    grid->GlobalSum(intraSum);
+    grid->GlobalSum(interSum);
+    grid->GlobalSum(mismatchSum);
+    RealD intraMax = intra, intraNegMin = -RealD(intra);
+    grid->GlobalMax(intraMax);
+    grid->GlobalMax(intraNegMin);
+    const bool uniform = (intraMax == -intraNegMin);
+
+    std::cout << GridLogMessage << "* faces/rank     : " << intra << " intra-node, "
+              << inter << " inter-node" << std::endl;
+    std::cout << GridLogMessage << "* faces/job      : " << intraSum << " intra-node, "
+              << interSum << " inter-node";
+    if (intraSum + interSum)
+    {
+      std::cout << " (" << (100.0 * interSum) / RealD(intraSum + interSum)
+                << "% inter-node)";
+    }
+    std::cout << std::endl;
+
+    if (!uniform)
+    {
+      std::cout << GridLogWarning
+                << "Intra-node face count varies across ranks (min "
+                << -intraNegMin << ", max " << intraMax
+                << "); the per-rank line above describes rank "
+                << grid->ThisRank() << " only. Re-run with --debug-stdout for all ranks."
+                << std::endl;
+    }
+    if (mismatchSum)
+    {
+      std::cout << GridLogWarning << "IsOffNode disagrees with hostname comparison for "
+                << mismatchSum << " of " << (intraSum + interSum)
+                << " faces: the MPI shared-memory split does not match the physical node."
+                << std::endl;
+    }
+
+    tmp["faces"]["intra_per_rank"] = intra;
+    tmp["faces"]["inter_per_rank"] = inter;
+    tmp["faces"]["intra_total"] = intraSum;
+    tmp["faces"]["inter_total"] = interSum;
+    tmp["faces"]["uniform_across_ranks"] = uniform;
+    tmp["faces"]["hostname_agrees"] = (mismatchSum == 0);
+  }
+
   static void Decomposition(int& NNout, Grid::Coordinate& pattern, nlohmann::json& json_results)
   {
     GRID_ROCTX_RANGE("Decomposition");
@@ -80,7 +214,6 @@ namespace Benchmark
     uint64_t NN = TmpGrid->NodeCount();
     NNout = NN;
     uint64_t SHM = NP / NN;
-    delete TmpGrid;
 
     grid_big_sep();
     std::cout << GridLogMessage << "Grid Default Decomposition patterns\n";
@@ -119,6 +252,9 @@ namespace Benchmark
     std::cout << GridLogMessage << "* ranks          : " << NP << std::endl;
     std::cout << GridLogMessage << "* nodes          : " << NN << std::endl;
     std::cout << GridLogMessage << "* ranks/node     : " << SHM << std::endl;
+
+    NeighbourTopology(TmpGrid, tmp);
+    delete TmpGrid;
 
     for (unsigned int i = 0; i < mpi.size(); ++i)
     {
